@@ -59,6 +59,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
   String? _rightAdImagePath;
   String? _bottomAdImagePath;
   final ImagePicker _imagePicker = ImagePicker();
+  bool _showAppBar = false;
 
   @override
   void initState() {
@@ -307,7 +308,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
+      appBar: _showAppBar ? AppBar(
         backgroundColor: Colors.black87,
         foregroundColor: Colors.white,
         leading: IconButton(
@@ -340,9 +341,38 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
             tooltip: 'Reconnect',
           ),
         ],
-      ),
-      body: SafeArea(
-        child: _isFullscreen ? _buildFullscreenLayout() : _buildAdModeLayout(),
+      ) : null,
+      body: Stack(
+        children: [
+          SafeArea(
+            child: _isFullscreen ? _buildFullscreenLayout() : _buildAdModeLayout(),
+          ),
+          // Floating toggle button in top right
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Material(
+              color: Colors.black54,
+              borderRadius: BorderRadius.circular(20),
+              child: InkWell(
+                onTap: () {
+                  setState(() {
+                    _showAppBar = !_showAppBar;
+                  });
+                },
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  child: Icon(
+                    _showAppBar ? Icons.expand_less : Icons.expand_more,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
