@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import 'package:image_picker/image_picker.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -52,6 +54,11 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
   bool _isLiveMode = true;
   DateTime? _currentPlayerTime;
   DateTime? _playbackStartTime;
+  bool _isFullscreen = true;
+  bool _showControls = true;
+  String? _rightAdImagePath;
+  String? _bottomAdImagePath;
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -209,15 +216,124 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
     await _player.open(Media(playbackUrl));
   }
 
+  Future<void> _pickRightAdImage() async {
+    final XFile? image = await _imagePicker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      setState(() {
+        _rightAdImagePath = image.path;
+      });
+    }
+  }
+
+  Future<void> _pickBottomAdImage() async {
+    final XFile? image = await _imagePicker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      setState(() {
+        _bottomAdImagePath = image.path;
+      });
+    }
+  }
+
+  void _showSettingsDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.grey[900],
+          title: const Text(
+            'Ad Settings',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.image, color: Colors.blue),
+                title: const Text(
+                  'Right Ad Image',
+                  style: TextStyle(color: Colors.white),
+                ),
+                subtitle: Text(
+                  _rightAdImagePath == null ? 'No image selected' : 'Image selected',
+                  style: TextStyle(color: Colors.grey[400]),
+                ),
+                trailing: const Icon(Icons.upload, color: Colors.white),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickRightAdImage();
+                },
+              ),
+              const Divider(color: Colors.grey),
+              ListTile(
+                leading: const Icon(Icons.image, color: Colors.blue),
+                title: const Text(
+                  'Bottom Ad Image',
+                  style: TextStyle(color: Colors.white),
+                ),
+                subtitle: Text(
+                  _bottomAdImagePath == null ? 'No image selected' : 'Image selected',
+                  style: TextStyle(color: Colors.grey[400]),
+                ),
+                trailing: const Icon(Icons.upload, color: Colors.white),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickBottomAdImage();
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _rightAdImagePath = null;
+                  _bottomAdImagePath = null;
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('Clear All'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('RTSP Viewer'),
         backgroundColor: Colors.black87,
         foregroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.settings),
+          onPressed: _showSettingsDialog,
+          tooltip: 'Settings',
+        ),
         actions: [
+          IconButton(
+            icon: Icon(_showControls ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up),
+            onPressed: () {
+              setState(() {
+                _showControls = !_showControls;
+              });
+            },
+            tooltip: _showControls ? 'Hide Controls' : 'Show Controls',
+          ),
+          IconButton(
+            icon: Icon(_isFullscreen ? Icons.view_sidebar : Icons.fullscreen),
+            onPressed: () {
+              setState(() {
+                _isFullscreen = !_isFullscreen;
+              });
+            },
+            tooltip: _isFullscreen ? 'Ad Mode' : 'Fullscreen',
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _reconnect,
@@ -226,17 +342,107 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
         ],
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: Center(
-                child: _buildVideoPlayer(),
+        child: _isFullscreen ? _buildFullscreenLayout() : _buildAdModeLayout(),
+      ),
+    );
+  }
+
+  Widget _buildFullscreenLayout() {
+    return Column(
+      children: [
+        Expanded(
+          child: Center(
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: _buildVideoPlayer(),
+            ),
+          ),
+        ),
+        if (_showControls) _buildControls(),
+      ],
+    );
+  }
+
+  Widget _buildAdModeLayout() {
+    return Column(
+      children: [
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Calculate video width based on available height to maintain 16:9
+              double videoWidth = constraints.maxHeight * 16 / 9;
+              return Row(
+                children: [
+                  // Video on the left with fixed 16:9 ratio
+                  SizedBox(
+                    width: videoWidth,
+                    child: Center(
+                      child: AspectRatio(
+                        aspectRatio: 16 / 9,
+                        child: _buildVideoPlayer(),
+                      ),
+                    ),
+                  ),
+                  // Right ad area - takes remaining width
+                  Expanded(
+                    child: _buildAdPlaceholder('Right Ad', Colors.grey[800]!, _rightAdImagePath),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+        // Bottom ad area
+        SizedBox(
+          height: 150,
+          child: _buildAdPlaceholder('Bottom Ad Banner', Colors.grey[850]!, _bottomAdImagePath),
+        ),
+        if (_showControls) _buildControls(),
+      ],
+    );
+  }
+
+  Widget _buildAdPlaceholder(String label, Color backgroundColor, String? imagePath) {
+    return Container(
+      decoration: BoxDecoration(
+        color: backgroundColor,
+      ),
+      child: imagePath != null
+          ? Image.file(
+              File(imagePath),
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+            )
+          : Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.image,
+                    size: 48,
+                    color: Colors.grey[500],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: Colors.grey[500],
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '(Advertisement)',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ),
             ),
-            _buildControls(),
-          ],
-        ),
-      ),
     );
   }
 
@@ -280,11 +486,8 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
       );
     }
 
-    return AspectRatio(
-      aspectRatio: 16 / 9,
-      child: Video(
-        controller: _videoController,
-      ),
+    return Video(
+      controller: _videoController,
     );
   }
 
