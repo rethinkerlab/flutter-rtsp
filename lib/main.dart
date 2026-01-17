@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -59,10 +60,17 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
   DateTime? _currentPlayerTime;
   DateTime? _playbackStartTime;
   bool _isFullscreen = true;
-  bool _showControls = true;
   String? _adImagePath;
   final ImagePicker _imagePicker = ImagePicker();
   bool _showAppBar = false;
+
+  // Score tracking
+  int _homeScore = 0;
+  int _awayScore = 0;
+
+  // Timer for clock display
+  Timer? _clockTimer;
+  DateTime _currentTime = DateTime.now();
 
   @override
   void initState() {
@@ -70,6 +78,17 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
     _player = Player();
     _videoController = VideoController(_player);
     _initializePlayer();
+    _startClockTimer();
+  }
+
+  void _startClockTimer() {
+    _clockTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          _currentTime = DateTime.now();
+        });
+      }
+    });
   }
 
   Future<void> _initializePlayer() async {
@@ -133,6 +152,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
 
   @override
   void dispose() {
+    _clockTimer?.cancel();
     _player.dispose();
     super.dispose();
   }
@@ -400,58 +420,6 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
             bottom: false,
             child: _isFullscreen ? _buildFullscreenLayout() : _buildAdModeLayout(),
           ),
-          // Floating toggle buttons in top right
-          Positioned(
-            top: _showAppBar ? 8 : 40,
-            right: 8,
-            child: Row(
-              children: [
-                // Control panel toggle button
-                Material(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(20),
-                  child: InkWell(
-                    onTap: () {
-                      setState(() {
-                        _showControls = !_showControls;
-                      });
-                    },
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      child: Icon(
-                        _showControls ? Icons.tune : Icons.tune_outlined,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // AppBar toggle button
-                Material(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(20),
-                  child: InkWell(
-                    onTap: () {
-                      setState(() {
-                        _showAppBar = !_showAppBar;
-                      });
-                    },
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      child: Icon(
-                        _showAppBar ? Icons.expand_less : Icons.expand_more,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -459,13 +427,237 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
 
   Widget _buildFullscreenLayout() {
     return Column(
+      children: [
+        Expanded(
+          child: Row(
+            children: [
+              // Video area - 80% width
+              Expanded(
+                flex: 80,
+                child: Center(
+                  child: AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: _buildVideoPlayer(),
+                  ),
+                ),
+              ),
+              // Side panel - 20% width
+              Expanded(
+                flex: 20,
+                child: _buildSidePanel(),
+              ),
+            ],
+          ),
+        ),
+        _buildControls(),
+      ],
+    );
+  }
+
+  Widget _buildSidePanel() {
+    return Container(
+      color: Colors.grey[900],
+      child: Column(
+        children: [
+          // Date/Time display - 1/3 height
+          Expanded(
+            flex: 1,
+            child: _buildDateTimeDisplay(),
+          ),
+          // Score panel - 2/3 height
+          Expanded(
+            flex: 2,
+            child: _buildScorePanel(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateTimeDisplay() {
+    final dateStr = '${_currentTime.year}/${_currentTime.month.toString().padLeft(2, '0')}/${_currentTime.day.toString().padLeft(2, '0')}';
+    final timeStr = '${_currentTime.hour.toString().padLeft(2, '0')}:${_currentTime.minute.toString().padLeft(2, '0')}:${_currentTime.second.toString().padLeft(2, '0')}';
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _showAppBar = !_showAppBar;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        color: Colors.transparent,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                dateStr,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 36,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                timeStr,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 48,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScorePanel() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: Colors.grey[700]!, width: 1),
+        ),
+      ),
+      child: Column(
+        children: [
+          // Title row with reset button
+          Row(
+            children: [
+              // Spacer for balance
+              const SizedBox(width: 44),
+              // Centered title
+              const Expanded(
+                child: Text(
+                  '得分',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              // Right-aligned reset button
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _homeScore = 0;
+                      _awayScore = 0;
+                    });
+                  },
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.refresh,
+                      color: Colors.black,
+                      size: 28,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          // Home score row
+          Expanded(
+            child: _buildScoreRow('主', _homeScore, (delta) {
+              setState(() {
+                _homeScore = (_homeScore + delta).clamp(0, 999);
+              });
+            }),
+          ),
+          const SizedBox(height: 16),
+          // Away score row
+          Expanded(
+            child: _buildScoreRow('客', _awayScore, (delta) {
+              setState(() {
+                _awayScore = (_awayScore + delta).clamp(0, 999);
+              });
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScoreRow(String label, int score, Function(int) onScoreChange) {
+    return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        AspectRatio(
-          aspectRatio: 16 / 9,
-          child: _buildVideoPlayer(),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        if (_showControls) _buildControls(),
+        const SizedBox(width: 12),
+        // Minus button
+        GestureDetector(
+          onTap: () => onScoreChange(-1),
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.5),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.remove,
+              color: Colors.black,
+              size: 28,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        // Score display
+        Container(
+          constraints: const BoxConstraints(minWidth: 60),
+          child: Text(
+            score.toString(),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 40,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        // Plus button
+        GestureDetector(
+          onTap: () => onScoreChange(1),
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.5),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.add,
+              color: Colors.black,
+              size: 28,
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -473,16 +665,33 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
   Widget _buildAdModeLayout() {
     return Column(
       children: [
-        // Video at top, full width with 16:9 aspect ratio
-        AspectRatio(
-          aspectRatio: 16 / 9,
-          child: _buildVideoPlayer(),
+        // Top row: Video (80%) + Side panel (20%)
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Video - 80% width
+            Expanded(
+              flex: 80,
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: _buildVideoPlayer(),
+              ),
+            ),
+            // Side panel - 20% width, same height as video
+            Expanded(
+              flex: 20,
+              child: AspectRatio(
+                aspectRatio: 4 / 9, // Match video height (20/80 * 16/9 = 4/9)
+                child: _buildSidePanel(),
+              ),
+            ),
+          ],
         ),
-        // Ad area at bottom
+        // Ad area - full width
         Expanded(
           child: _buildAdPlaceholder(Colors.grey[800]!, _adImagePath),
         ),
-        if (_showControls) _buildControls(),
+        _buildControls(),
       ],
     );
   }
