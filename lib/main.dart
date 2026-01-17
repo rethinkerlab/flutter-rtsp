@@ -56,8 +56,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
   DateTime? _playbackStartTime;
   bool _isFullscreen = true;
   bool _showControls = true;
-  String? _rightAdImagePath;
-  String? _bottomAdImagePath;
+  String? _adImagePath;
   final ImagePicker _imagePicker = ImagePicker();
   bool _showAppBar = false;
 
@@ -91,7 +90,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
       _player.stream.error.listen((error) {
         if (mounted && error != null) {
           setState(() {
-            _errorMessage = 'Error playing stream: $error';
+            _errorMessage = '串流播放錯誤：$error';
             _isLoading = false;
           });
         }
@@ -121,7 +120,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Failed to initialize player: $e';
+          _errorMessage = '播放器初始化失敗：$e';
           _isLoading = false;
         });
       }
@@ -164,12 +163,12 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
     return url;
   }
 
-  Future<void> _seekBackward30s() async {
+  Future<void> _seekBackward60s() async {
     DateTime now = DateTime.now();
     DateTime currentTime = _currentPlayerTime ?? now;
 
-    // Calculate start time (30 seconds before current player time)
-    DateTime startTime = currentTime.subtract(const Duration(seconds: 30));
+    // Calculate start time (60 seconds before current player time)
+    DateTime startTime = currentTime.subtract(const Duration(seconds: 60));
     DateTime endTime = now;
 
     setState(() {
@@ -217,20 +216,22 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
     await _player.open(Media(playbackUrl));
   }
 
-  Future<void> _pickRightAdImage() async {
-    final XFile? image = await _imagePicker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      setState(() {
-        _rightAdImagePath = image.path;
-      });
-    }
+  Future<void> _switchToLiveMode() async {
+    setState(() {
+      _isLiveMode = true;
+      _playbackStartTime = null;
+      _currentPlayerTime = DateTime.now();
+      _isLoading = true;
+    });
+    await _player.stop();
+    await _player.open(Media(_liveUrl));
   }
 
-  Future<void> _pickBottomAdImage() async {
+  Future<void> _pickAdImage() async {
     final XFile? image = await _imagePicker.pickImage(source: ImageSource.gallery);
     if (image != null) {
       setState(() {
-        _bottomAdImagePath = image.path;
+        _adImagePath = image.path;
       });
     }
   }
@@ -245,7 +246,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
         return AlertDialog(
           backgroundColor: Colors.grey[900],
           title: const Text(
-            'Settings',
+            '設定',
             style: TextStyle(color: Colors.white),
           ),
           content: SingleChildScrollView(
@@ -254,7 +255,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'RTSP URLs',
+                  'RTSP 網址',
                   style: TextStyle(
                     color: Colors.blue,
                     fontSize: 16,
@@ -266,7 +267,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
                   controller: baseUrlController,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    labelText: 'Base URL',
+                    labelText: '基礎網址',
                     labelStyle: TextStyle(color: Colors.grey[400]),
                     enabledBorder: OutlineInputBorder(
                       borderSide: BorderSide(color: Colors.grey[600]!),
@@ -281,7 +282,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
                   controller: liveUrlController,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    labelText: 'Live Stream URL',
+                    labelText: '直播串流網址',
                     labelStyle: TextStyle(color: Colors.grey[400]),
                     enabledBorder: OutlineInputBorder(
                       borderSide: BorderSide(color: Colors.grey[600]!),
@@ -293,7 +294,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
                 ),
                 const SizedBox(height: 20),
                 const Text(
-                  'Ad Images',
+                  '廣告圖片（L形）',
                   style: TextStyle(
                     color: Colors.blue,
                     fontSize: 16,
@@ -305,35 +306,17 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.image, color: Colors.blue),
                   title: const Text(
-                    'Right Ad Image',
+                    '廣告圖片',
                     style: TextStyle(color: Colors.white),
                   ),
                   subtitle: Text(
-                    _rightAdImagePath == null ? 'No image selected' : 'Image selected',
+                    _adImagePath == null ? '未選擇圖片' : '已選擇圖片',
                     style: TextStyle(color: Colors.grey[400]),
                   ),
                   trailing: const Icon(Icons.upload, color: Colors.white),
                   onTap: () {
                     Navigator.pop(context);
-                    _pickRightAdImage();
-                  },
-                ),
-                const Divider(color: Colors.grey),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.image, color: Colors.blue),
-                  title: const Text(
-                    'Bottom Ad Image',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                  subtitle: Text(
-                    _bottomAdImagePath == null ? 'No image selected' : 'Image selected',
-                    style: TextStyle(color: Colors.grey[400]),
-                  ),
-                  trailing: const Icon(Icons.upload, color: Colors.white),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _pickBottomAdImage();
+                    _pickAdImage();
                   },
                 ),
               ],
@@ -343,16 +326,15 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
             TextButton(
               onPressed: () {
                 setState(() {
-                  _rightAdImagePath = null;
-                  _bottomAdImagePath = null;
+                  _adImagePath = null;
                 });
                 Navigator.pop(context);
               },
-              child: const Text('Clear Ads'),
+              child: const Text('清除廣告'),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: const Text('取消'),
             ),
             TextButton(
               onPressed: () async {
@@ -364,7 +346,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
                 // Reconnect with new URLs
                 await _reconnect();
               },
-              child: const Text('Save'),
+              child: const Text('儲存'),
             ),
           ],
         );
@@ -386,15 +368,6 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
         ),
         actions: [
           IconButton(
-            icon: Icon(_showControls ? Icons.tune : Icons.tune_outlined),
-            onPressed: () {
-              setState(() {
-                _showControls = !_showControls;
-              });
-            },
-            tooltip: _showControls ? 'Hide Controls' : 'Show Controls',
-          ),
-          IconButton(
             icon: Icon(_isFullscreen ? Icons.view_sidebar : Icons.fullscreen),
             onPressed: () {
               setState(() {
@@ -415,29 +388,56 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
           SafeArea(
             child: _isFullscreen ? _buildFullscreenLayout() : _buildAdModeLayout(),
           ),
-          // Floating toggle button in top right
+          // Floating toggle buttons in top right
           Positioned(
             top: 8,
             right: 8,
-            child: Material(
-              color: Colors.black54,
-              borderRadius: BorderRadius.circular(20),
-              child: InkWell(
-                onTap: () {
-                  setState(() {
-                    _showAppBar = !_showAppBar;
-                  });
-                },
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  child: Icon(
-                    _showAppBar ? Icons.expand_less : Icons.expand_more,
-                    color: Colors.white,
-                    size: 20,
+            child: Row(
+              children: [
+                // Control panel toggle button
+                Material(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(20),
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _showControls = !_showControls;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      child: Icon(
+                        _showControls ? Icons.tune : Icons.tune_outlined,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                const SizedBox(width: 8),
+                // AppBar toggle button
+                Material(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(20),
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _showAppBar = !_showAppBar;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      child: Icon(
+                        _showAppBar ? Icons.expand_less : Icons.expand_more,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -467,33 +467,29 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              // Calculate video width based on available height to maintain 16:9
-              double videoWidth = constraints.maxHeight * 16 / 9;
-              return Row(
+              // Calculate video dimensions based on available space
+              // Video takes top-left (80% width), ad covers rest (L-shape: right + bottom)
+              final double videoWidth = constraints.maxWidth * 0.8;
+              final double videoHeight = videoWidth * 9 / 16;
+
+              return Stack(
                 children: [
-                  // Video on the left with fixed 16:9 ratio
-                  SizedBox(
-                    width: videoWidth,
-                    child: Center(
-                      child: AspectRatio(
-                        aspectRatio: 16 / 9,
-                        child: _buildVideoPlayer(),
-                      ),
-                    ),
+                  // L-shaped ad background covering entire area
+                  Positioned.fill(
+                    child: _buildAdPlaceholder('Ad Space (L-shaped)', Colors.grey[800]!, _adImagePath),
                   ),
-                  // Right ad area - takes remaining width
-                  Expanded(
-                    child: _buildAdPlaceholder('Right Ad', Colors.grey[800]!, _rightAdImagePath),
+                  // Video positioned in top-left with 16:9 aspect ratio
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    width: videoWidth,
+                    height: videoHeight,
+                    child: _buildVideoPlayer(),
                   ),
                 ],
               );
             },
           ),
-        ),
-        // Bottom ad area
-        SizedBox(
-          height: 150,
-          child: _buildAdPlaceholder('Bottom Ad Banner', Colors.grey[850]!, _bottomAdImagePath),
         ),
         if (_showControls) _buildControls(),
       ],
@@ -545,8 +541,10 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
   }
 
   Widget _buildVideoPlayer() {
+    Widget content;
+
     if (_errorMessage.isNotEmpty) {
-      return Column(
+      content = Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Icon(
@@ -564,28 +562,31 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
           ElevatedButton.icon(
             onPressed: _reconnect,
             icon: const Icon(Icons.refresh),
-            label: const Text('Retry'),
+            label: const Text('重試'),
           ),
         ],
       );
-    }
-
-    if (_isLoading) {
-      return const Column(
+    } else if (_isLoading) {
+      content = const Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           CircularProgressIndicator(color: Colors.blue),
           SizedBox(height: 16),
           Text(
-            'Connecting to stream...',
+            '正在連接串流...',
             style: TextStyle(color: Colors.white),
           ),
         ],
       );
+    } else {
+      content = Video(
+        controller: _videoController,
+      );
     }
 
-    return Video(
-      controller: _videoController,
+    return Container(
+      color: Colors.black,
+      child: content,
     );
   }
 
@@ -600,7 +601,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
-              _isLiveMode ? 'LIVE MODE' : 'PLAYBACK MODE',
+              _isLiveMode ? '直播模式' : '回放模式',
               style: TextStyle(
                 color: _isLiveMode ? Colors.red : Colors.orange,
                 fontWeight: FontWeight.bold,
@@ -612,38 +613,40 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // -30s button
+              // -60s button
               IconButton(
                 icon: const Icon(
-                  Icons.replay_30,
+                  Icons.replay,
                   color: Colors.white,
                 ),
                 iconSize: 32,
-                onPressed: _isLoading ? null : _seekBackward30s,
-                tooltip: 'Go back 30 seconds',
+                onPressed: _isLoading ? null : _seekBackward60s,
+                tooltip: '回放60秒',
               ),
               const SizedBox(width: 8),
-              // Play/Pause button
-              IconButton(
-                icon: Icon(
-                  _isPlaying ? Icons.pause : Icons.play_arrow,
-                  color: Colors.white,
+              if (_isLiveMode) ...[
+                // Play/Pause button (only in live mode)
+                IconButton(
+                  icon: Icon(
+                    _isPlaying ? Icons.pause : Icons.play_arrow,
+                    color: Colors.white,
+                  ),
+                  iconSize: 40,
+                  onPressed: _togglePlayPause,
+                  tooltip: '播放/暫停',
                 ),
-                iconSize: 40,
-                onPressed: _togglePlayPause,
-                tooltip: 'Play/Pause',
-              ),
-              const SizedBox(width: 8),
-              // +30s button
-              IconButton(
-                icon: const Icon(
-                  Icons.forward_30,
-                  color: Colors.white,
+              ] else ...[
+                // Return to live button (only in playback mode)
+                IconButton(
+                  icon: const Icon(
+                    Icons.live_tv,
+                    color: Colors.red,
+                  ),
+                  iconSize: 32,
+                  onPressed: _isLoading ? null : _switchToLiveMode,
+                  tooltip: '返回直播',
                 ),
-                iconSize: 32,
-                onPressed: _isLoading ? null : _seekForward30s,
-                tooltip: 'Go forward 30 seconds',
-              ),
+              ],
             ],
           ),
         ],
