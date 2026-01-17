@@ -33,7 +33,7 @@ migrate_working_dir/
 /build/
 
 # Symbolication related
-app.*.symbols
+app.*.symbolsThe
 
 # Obfuscation related
 app.*.map.json

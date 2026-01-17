@@ -397,6 +397,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
       body: Stack(
         children: [
           SafeArea(
+            bottom: false,
             child: _isFullscreen ? _buildFullscreenLayout() : _buildAdModeLayout(),
           ),
           // Floating toggle buttons in top right
@@ -475,32 +476,14 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
   Widget _buildAdModeLayout() {
     return Column(
       children: [
+        // Video at top, full width with 16:9 aspect ratio
+        AspectRatio(
+          aspectRatio: 16 / 9,
+          child: _buildVideoPlayer(),
+        ),
+        // Ad area at bottom
         Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              // Calculate video dimensions based on available space
-              // Video takes top-left (80% width), ad covers rest (L-shape: right + bottom)
-              final double videoWidth = constraints.maxWidth * 0.8;
-              final double videoHeight = videoWidth * 9 / 16;
-
-              return Stack(
-                children: [
-                  // L-shaped ad background covering entire area
-                  Positioned.fill(
-                    child: _buildAdPlaceholder('Ad Space (L-shaped)', Colors.grey[800]!, _adImagePath),
-                  ),
-                  // Video positioned in top-left with 16:9 aspect ratio
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    width: videoWidth,
-                    height: videoHeight,
-                    child: _buildVideoPlayer(),
-                  ),
-                ],
-              );
-            },
-          ),
+          child: _buildAdPlaceholder('Ad Space', Colors.grey[800]!, _adImagePath),
         ),
         if (_showControls) _buildControls(),
       ],
@@ -602,64 +585,61 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
   }
 
   Widget _buildControls() {
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.only(left: 8, right: 8, top: 2, bottom: bottomPadding),
       color: Colors.black87,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           // Mode indicator
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: _isLiveMode ? Colors.red.withOpacity(0.3) : Colors.orange.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(4),
+            ),
             child: Text(
-              _isLiveMode ? '直播模式' : '回放模式',
+              _isLiveMode ? '直播' : '回放',
               style: TextStyle(
                 color: _isLiveMode ? Colors.red : Colors.orange,
                 fontWeight: FontWeight.bold,
-                fontSize: 12,
+                fontSize: 10,
               ),
             ),
           ),
-          // Control buttons
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // -60s button
-              IconButton(
-                icon: const Icon(
-                  Icons.replay,
-                  color: Colors.white,
-                ),
-                iconSize: 32,
-                onPressed: _isLoading ? null : _seekBackward60s,
-                tooltip: '回放60秒',
-              ),
-              const SizedBox(width: 8),
-              if (_isLiveMode) ...[
-                // Play/Pause button (only in live mode)
-                IconButton(
-                  icon: Icon(
-                    _isPlaying ? Icons.pause : Icons.play_arrow,
-                    color: Colors.white,
-                  ),
-                  iconSize: 40,
-                  onPressed: _togglePlayPause,
-                  tooltip: '播放/暫停',
-                ),
-              ] else ...[
-                // Return to live button (only in playback mode)
-                IconButton(
-                  icon: const Icon(
-                    Icons.live_tv,
-                    color: Colors.red,
-                  ),
-                  iconSize: 32,
-                  onPressed: _isLoading ? null : _switchToLiveMode,
-                  tooltip: '返回直播',
-                ),
-              ],
-            ],
+          const SizedBox(width: 16),
+          // -60s button
+          GestureDetector(
+            onTap: _isLoading ? null : _seekBackward60s,
+            child: Icon(
+              Icons.replay,
+              color: _isLoading ? Colors.grey : Colors.white,
+              size: 24,
+            ),
           ),
+          const SizedBox(width: 16),
+          if (_isLiveMode) ...[
+            // Play/Pause button (only in live mode)
+            GestureDetector(
+              onTap: _togglePlayPause,
+              child: Icon(
+                _isPlaying ? Icons.pause : Icons.play_arrow,
+                color: Colors.white,
+                size: 28,
+              ),
+            ),
+          ] else ...[
+            // Return to live button (only in playback mode)
+            GestureDetector(
+              onTap: _isLoading ? null : _switchToLiveMode,
+              child: Icon(
+                Icons.live_tv,
+                color: _isLoading ? Colors.grey : Colors.red,
+                size: 24,
+              ),
+            ),
+          ],
         ],
       ),
     );
