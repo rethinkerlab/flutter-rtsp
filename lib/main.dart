@@ -45,7 +45,7 @@ class RTSPPlayerScreen extends StatefulWidget {
   State<RTSPPlayerScreen> createState() => _RTSPPlayerScreenState();
 }
 
-class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
+class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> with SingleTickerProviderStateMixin {
   late final Player _player;
   late final VideoController _videoController;
 
@@ -75,6 +75,11 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
   Timer? _clockTimer;
   DateTime _currentTime = DateTime.now();
 
+  // Transition animation
+  bool _showTransition = false;
+  late AnimationController _transitionController;
+  late Animation<double> _fadeAnimation;
+
   @override
   void initState() {
     super.initState();
@@ -82,6 +87,17 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
     _videoController = VideoController(_player);
     _initializePlayer();
     _startClockTimer();
+    _initTransitionAnimation();
+  }
+
+  void _initTransitionAnimation() {
+    _transitionController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _transitionController, curve: Curves.easeInOut),
+    );
   }
 
   void _startClockTimer() {
@@ -156,6 +172,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
   @override
   void dispose() {
     _clockTimer?.cancel();
+    _transitionController.dispose();
     _player.dispose();
     super.dispose();
   }
@@ -207,11 +224,29 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
 
     print('Seeking from $currentPosition to $seekPosition (${_seekBackwardSeconds}s back)');
 
+    // Show transition with logo
     setState(() {
+      _showTransition = true;
       _isLiveMode = false;
     });
 
+    // Fade in the logo
+    await _transitionController.forward();
+
+    // Perform the seek
     await _player.seek(seekPosition);
+
+    // Wait for 1 second to show the logo
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    // Fade out the logo
+    await _transitionController.reverse();
+
+    if (mounted) {
+      setState(() {
+        _showTransition = false;
+      });
+    }
   }
 
   Future<void> _seekForward30s() async {
@@ -753,24 +788,27 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
               height: double.infinity,
             )
           : Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.image,
-                    size: 48,
-                    color: Colors.grey[500],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '廣告空間',
-                    style: TextStyle(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.image,
+                      size: 48,
                       color: Colors.grey[500],
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Text(
+                      '廣告空間',
+                      style: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
     );
@@ -781,6 +819,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
 
     if (_errorMessage.isNotEmpty) {
       content = Column(
+        mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Icon(
@@ -804,6 +843,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
       );
     } else if (_isLoading) {
       content = const Column(
+        mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           CircularProgressIndicator(color: Colors.blue),
@@ -822,7 +862,28 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
 
     return Container(
       color: Colors.black,
-      child: content,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Center(child: content),
+          ),
+          // Transition overlay with logo
+          if (_showTransition)
+            FadeTransition(
+              opacity: _fadeAnimation,
+              child: Container(
+                color: Colors.black,
+                child: Center(
+                  child: Image.asset(
+                    'assets/app_icon.png',
+                    width: 150,
+                    height: 150,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
