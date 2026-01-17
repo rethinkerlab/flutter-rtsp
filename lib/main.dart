@@ -27,7 +27,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'RTSP Viewer',
+      title: 'Sportieyes',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
@@ -67,6 +67,9 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
   // Score tracking
   int _homeScore = 0;
   int _awayScore = 0;
+
+  // Seek duration in seconds
+  int _seekBackwardSeconds = 30;
 
   // Timer for clock display
   Timer? _clockTimer;
@@ -194,15 +197,15 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
     return url;
   }
 
-  Future<void> _seekBackward60s() async {
-    // Get current position and seek backward 60 seconds
+  Future<void> _seekBackward() async {
+    // Get current position and seek backward
     final currentPosition = _player.state.position;
-    final newPosition = currentPosition - const Duration(seconds: 60);
+    final newPosition = currentPosition - Duration(seconds: _seekBackwardSeconds);
 
     // Ensure we don't seek to negative position
     final seekPosition = newPosition.isNegative ? Duration.zero : newPosition;
 
-    print('Seeking from $currentPosition to $seekPosition');
+    print('Seeking from $currentPosition to $seekPosition (${_seekBackwardSeconds}s back)');
 
     setState(() {
       _isLiveMode = false;
@@ -268,6 +271,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
   void _showSettingsDialog() {
     final TextEditingController baseUrlController = TextEditingController(text: _baseUrl);
     final TextEditingController liveUrlController = TextEditingController(text: _liveUrl);
+    final TextEditingController seekSecondsController = TextEditingController(text: _seekBackwardSeconds.toString());
 
     showDialog(
       context: context,
@@ -313,6 +317,33 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
                   decoration: InputDecoration(
                     labelText: '直播串流網址',
                     labelStyle: TextStyle(color: Colors.grey[400]),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.grey[600]!),
+                    ),
+                    focusedBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.blue),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  '回放設定',
+                  style: TextStyle(
+                    color: Colors.blue,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: seekSecondsController,
+                  style: const TextStyle(color: Colors.white),
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: '回放秒數',
+                    labelStyle: TextStyle(color: Colors.grey[400]),
+                    suffixText: '秒',
+                    suffixStyle: const TextStyle(color: Colors.white70),
                     enabledBorder: OutlineInputBorder(
                       borderSide: BorderSide(color: Colors.grey[600]!),
                     ),
@@ -370,6 +401,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
                 setState(() {
                   _baseUrl = baseUrlController.text;
                   _liveUrl = liveUrlController.text;
+                  _seekBackwardSeconds = int.tryParse(seekSecondsController.text) ?? 30;
                 });
                 Navigator.pop(context);
                 // Reconnect with new URLs
@@ -807,7 +839,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
         children: [
           // -60s button
           GestureDetector(
-            onTap: _isLoading ? null : _seekBackward60s,
+            onTap: _isLoading ? null : _seekBackward,
             child: Icon(
               Icons.replay,
               color: _isLoading ? Colors.grey : Colors.white,
