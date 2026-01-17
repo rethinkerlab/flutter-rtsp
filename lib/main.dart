@@ -71,6 +71,9 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> with SingleTickerPr
   // Seek duration in seconds
   int _seekBackwardSeconds = 30;
 
+  // Target position to return to live mode (when playback catches up)
+  Duration? _returnToLivePosition;
+
   // Timer for clock display
   Timer? _clockTimer;
   DateTime _currentTime = DateTime.now();
@@ -154,6 +157,19 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> with SingleTickerPr
           } else if (_playbackStartTime != null) {
             _currentPlayerTime = _playbackStartTime!.add(position);
           }
+
+          // Check if playback has caught up to the return position
+          if (!_isLiveMode && _returnToLivePosition != null) {
+            if (position >= _returnToLivePosition!) {
+              // Switch back to live mode without reloading
+              setState(() {
+                _isLiveMode = true;
+                _returnToLivePosition = null;
+                _currentPlayerTime = DateTime.now();
+              });
+              print('Playback caught up - switched to live mode');
+            }
+          }
         }
       });
 
@@ -228,6 +244,9 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> with SingleTickerPr
     setState(() {
       _showTransition = true;
       _isLiveMode = false;
+      // Save the current position to return to live when playback catches up
+      // Only set if not already set (first backward seek sets the target)
+      _returnToLivePosition ??= currentPosition;
     });
 
     // Fade in the logo
@@ -288,6 +307,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> with SingleTickerPr
       _isLiveMode = true;
       _playbackStartTime = null;
       _currentPlayerTime = DateTime.now();
+      _returnToLivePosition = null;
       _isLoading = true;
     });
     await _player.stop();
