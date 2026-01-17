@@ -195,22 +195,20 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
   }
 
   Future<void> _seekBackward60s() async {
-    DateTime now = DateTime.now();
-    DateTime currentTime = _currentPlayerTime ?? now;
+    // Get current position and seek backward 60 seconds
+    final currentPosition = _player.state.position;
+    final newPosition = currentPosition - const Duration(seconds: 60);
 
-    // Calculate start time (60 seconds before current player time)
-    DateTime startTime = currentTime.subtract(const Duration(seconds: 60));
-    DateTime endTime = now;
+    // Ensure we don't seek to negative position
+    final seekPosition = newPosition.isNegative ? Duration.zero : newPosition;
+
+    print('Seeking from $currentPosition to $seekPosition');
 
     setState(() {
       _isLiveMode = false;
-      _playbackStartTime = startTime;
-      _isLoading = true;
     });
 
-    String playbackUrl = _buildPlaybackUrl(startTime, endTime);
-    await _player.stop();
-    await _player.open(Media(playbackUrl));
+    await _player.seek(seekPosition);
   }
 
   Future<void> _seekForward30s() async {
