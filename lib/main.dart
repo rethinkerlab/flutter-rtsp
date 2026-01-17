@@ -459,6 +459,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
 
   Widget _buildFullscreenLayout() {
     return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         AspectRatio(
           aspectRatio: 16 / 9,
