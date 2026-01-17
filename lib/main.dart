@@ -45,8 +45,8 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
   late final VideoController _videoController;
 
   // RTSP URL components
-  final String _baseUrl = 'rtsp://admin:hkezit_root@61.238.85.218';
-  final String _liveUrl = 'rtsp://admin:hkezit_root@61.238.85.218/rtsp/streaming?channel=01';
+  String _baseUrl = 'rtsp://admin:hkezit_root@61.238.85.218';
+  String _liveUrl = 'rtsp://admin:hkezit_root@61.238.85.218/rtsp/streaming?channel=01';
 
   bool _isPlaying = false;
   bool _isLoading = true;
@@ -236,52 +236,108 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
   }
 
   void _showSettingsDialog() {
+    final TextEditingController baseUrlController = TextEditingController(text: _baseUrl);
+    final TextEditingController liveUrlController = TextEditingController(text: _liveUrl);
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: Colors.grey[900],
           title: const Text(
-            'Ad Settings',
+            'Settings',
             style: TextStyle(color: Colors.white),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.image, color: Colors.blue),
-                title: const Text(
-                  'Right Ad Image',
-                  style: TextStyle(color: Colors.white),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'RTSP URLs',
+                  style: TextStyle(
+                    color: Colors.blue,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                subtitle: Text(
-                  _rightAdImagePath == null ? 'No image selected' : 'Image selected',
-                  style: TextStyle(color: Colors.grey[400]),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: baseUrlController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Base URL',
+                    labelStyle: TextStyle(color: Colors.grey[400]),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.grey[600]!),
+                    ),
+                    focusedBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.blue),
+                    ),
+                  ),
                 ),
-                trailing: const Icon(Icons.upload, color: Colors.white),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickRightAdImage();
-                },
-              ),
-              const Divider(color: Colors.grey),
-              ListTile(
-                leading: const Icon(Icons.image, color: Colors.blue),
-                title: const Text(
-                  'Bottom Ad Image',
-                  style: TextStyle(color: Colors.white),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: liveUrlController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Live Stream URL',
+                    labelStyle: TextStyle(color: Colors.grey[400]),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.grey[600]!),
+                    ),
+                    focusedBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.blue),
+                    ),
+                  ),
                 ),
-                subtitle: Text(
-                  _bottomAdImagePath == null ? 'No image selected' : 'Image selected',
-                  style: TextStyle(color: Colors.grey[400]),
+                const SizedBox(height: 20),
+                const Text(
+                  'Ad Images',
+                  style: TextStyle(
+                    color: Colors.blue,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                trailing: const Icon(Icons.upload, color: Colors.white),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickBottomAdImage();
-                },
-              ),
-            ],
+                const SizedBox(height: 8),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.image, color: Colors.blue),
+                  title: const Text(
+                    'Right Ad Image',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  subtitle: Text(
+                    _rightAdImagePath == null ? 'No image selected' : 'Image selected',
+                    style: TextStyle(color: Colors.grey[400]),
+                  ),
+                  trailing: const Icon(Icons.upload, color: Colors.white),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickRightAdImage();
+                  },
+                ),
+                const Divider(color: Colors.grey),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.image, color: Colors.blue),
+                  title: const Text(
+                    'Bottom Ad Image',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  subtitle: Text(
+                    _bottomAdImagePath == null ? 'No image selected' : 'Image selected',
+                    style: TextStyle(color: Colors.grey[400]),
+                  ),
+                  trailing: const Icon(Icons.upload, color: Colors.white),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickBottomAdImage();
+                  },
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -292,11 +348,23 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
                 });
                 Navigator.pop(context);
               },
-              child: const Text('Clear All'),
+              child: const Text('Clear Ads'),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                setState(() {
+                  _baseUrl = baseUrlController.text;
+                  _liveUrl = liveUrlController.text;
+                });
+                Navigator.pop(context);
+                // Reconnect with new URLs
+                await _reconnect();
+              },
+              child: const Text('Save'),
             ),
           ],
         );
@@ -318,7 +386,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
         ),
         actions: [
           IconButton(
-            icon: Icon(_showControls ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up),
+            icon: Icon(_showControls ? Icons.tune : Icons.tune_outlined),
             onPressed: () {
               setState(() {
                 _showControls = !_showControls;
