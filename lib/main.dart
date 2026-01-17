@@ -150,6 +150,12 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
     await _player.open(Media(_liveUrl));
   }
 
+  String _getChannelFromLiveUrl() {
+    final regex = RegExp(r'channel=(\d+)');
+    final match = regex.firstMatch(_liveUrl);
+    return match?.group(1) ?? '01';
+  }
+
   String _buildPlaybackUrl(DateTime startTime, DateTime endTime) {
     // Format: 2025-12-09T01:30:00Z
     String formatDateTime(DateTime dt) {
@@ -162,7 +168,8 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
           '${utc.second.toString().padLeft(2, '0')}Z';
     }
 
-    String url = '$_baseUrl/rtsp/playback?channel=01&subtype=0&starttime=${formatDateTime(startTime)}&endtime=${formatDateTime(endTime)}';
+    String channel = _getChannelFromLiveUrl();
+    String url = '$_baseUrl/rtsp/playback?channel=$channel&subtype=0&starttime=${formatDateTime(startTime)}&endtime=${formatDateTime(endTime)}';
     print('Playback URL: $url');
     return url;
   }
@@ -394,7 +401,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
           ),
           // Floating toggle buttons in top right
           Positioned(
-            top: 8,
+            top: _showAppBar ? 8 : 40,
             right: 8,
             child: Row(
               children: [
