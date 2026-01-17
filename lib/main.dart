@@ -305,7 +305,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
                 ),
                 const SizedBox(height: 20),
                 const Text(
-                  '廣告圖片（L形）',
+                  '廣告圖片',
                   style: TextStyle(
                     color: Colors.blue,
                     fontSize: 16,
@@ -479,14 +479,14 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
         ),
         // Ad area at bottom
         Expanded(
-          child: _buildAdPlaceholder('Ad Space', Colors.grey[800]!, _adImagePath),
+          child: _buildAdPlaceholder(Colors.grey[800]!, _adImagePath),
         ),
         if (_showControls) _buildControls(),
       ],
     );
   }
 
-  Widget _buildAdPlaceholder(String label, Color backgroundColor, String? imagePath) {
+  Widget _buildAdPlaceholder(Color backgroundColor, String? imagePath) {
     return Container(
       decoration: BoxDecoration(
         color: backgroundColor,
@@ -509,19 +509,11 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    label,
+                    '廣告空間',
                     style: TextStyle(
                       color: Colors.grey[500],
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '(Advertisement)',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
                     ),
                   ),
                 ],
