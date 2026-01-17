@@ -426,30 +426,34 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
   }
 
   Widget _buildFullscreenLayout() {
-    return Column(
+    return Stack(
       children: [
-        Expanded(
-          child: Row(
-            children: [
-              // Video area - 80% width
-              Expanded(
-                flex: 80,
-                child: Center(
-                  child: AspectRatio(
-                    aspectRatio: 16 / 9,
-                    child: _buildVideoPlayer(),
-                  ),
+        Row(
+          children: [
+            // Video area - 80% width
+            Expanded(
+              flex: 80,
+              child: Center(
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: _buildVideoPlayer(),
                 ),
               ),
-              // Side panel - 20% width
-              Expanded(
-                flex: 20,
-                child: _buildSidePanel(),
-              ),
-            ],
-          ),
+            ),
+            // Side panel - 20% width
+            Expanded(
+              flex: 20,
+              child: _buildSidePanel(),
+            ),
+          ],
         ),
-        _buildControls(),
+        // Controls overlay at bottom center
+        Positioned(
+          bottom: MediaQuery.of(context).padding.bottom + 16,
+          left: 0,
+          right: 0,
+          child: Center(child: _buildControls()),
+        ),
       ],
     );
   }
@@ -663,35 +667,45 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
   }
 
   Widget _buildAdModeLayout() {
-    return Column(
+    return Stack(
       children: [
-        // Top row: Video (80%) + Side panel (20%)
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        Column(
           children: [
-            // Video - 80% width
-            Expanded(
-              flex: 80,
-              child: AspectRatio(
-                aspectRatio: 16 / 9,
-                child: _buildVideoPlayer(),
-              ),
+            // Top row: Video (80%) + Side panel (20%)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Video - 80% width
+                Expanded(
+                  flex: 80,
+                  child: AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: _buildVideoPlayer(),
+                  ),
+                ),
+                // Side panel - 20% width, same height as video
+                Expanded(
+                  flex: 20,
+                  child: AspectRatio(
+                    aspectRatio: 4 / 9, // Match video height (20/80 * 16/9 = 4/9)
+                    child: _buildSidePanel(),
+                  ),
+                ),
+              ],
             ),
-            // Side panel - 20% width, same height as video
+            // Ad area - full width
             Expanded(
-              flex: 20,
-              child: AspectRatio(
-                aspectRatio: 4 / 9, // Match video height (20/80 * 16/9 = 4/9)
-                child: _buildSidePanel(),
-              ),
+              child: _buildAdPlaceholder(Colors.grey[800]!, _adImagePath),
             ),
           ],
         ),
-        // Ad area - full width
-        Expanded(
-          child: _buildAdPlaceholder(Colors.grey[800]!, _adImagePath),
+        // Controls overlay at bottom center
+        Positioned(
+          bottom: MediaQuery.of(context).padding.bottom + 16,
+          left: 0,
+          right: 0,
+          child: Center(child: _buildControls()),
         ),
-        _buildControls(),
       ],
     );
   }
@@ -783,40 +797,26 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
   }
 
   Widget _buildControls() {
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
     return Container(
-      padding: EdgeInsets.only(left: 8, right: 8, top: 2, bottom: bottomPadding),
-      color: Colors.black87,
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.7),
+        borderRadius: BorderRadius.circular(48),
+      ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Mode indicator
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: _isLiveMode ? Colors.red.withOpacity(0.3) : Colors.orange.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              _isLiveMode ? '直播' : '回放',
-              style: TextStyle(
-                color: _isLiveMode ? Colors.red : Colors.orange,
-                fontWeight: FontWeight.bold,
-                fontSize: 10,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
           // -60s button
           GestureDetector(
             onTap: _isLoading ? null : _seekBackward60s,
             child: Icon(
               Icons.replay,
               color: _isLoading ? Colors.grey : Colors.white,
-              size: 24,
+              size: 48,
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 32),
           if (_isLiveMode) ...[
             // Play/Pause button (only in live mode)
             GestureDetector(
@@ -824,7 +824,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
               child: Icon(
                 _isPlaying ? Icons.pause : Icons.play_arrow,
                 color: Colors.white,
-                size: 28,
+                size: 56,
               ),
             ),
           ] else ...[
@@ -834,7 +834,7 @@ class _RTSPPlayerScreenState extends State<RTSPPlayerScreen> {
               child: Icon(
                 Icons.live_tv,
                 color: _isLoading ? Colors.grey : Colors.red,
-                size: 24,
+                size: 48,
               ),
             ),
           ],
